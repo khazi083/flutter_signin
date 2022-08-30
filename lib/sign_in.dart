@@ -1,9 +1,7 @@
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-final FirebaseAuth _auth = FirebaseAuth.instance;
 final GoogleSignIn googleSignIn = GoogleSignIn();
 
 bool authSignedIn;
@@ -16,58 +14,44 @@ Future getUser() async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
   authSignedIn = prefs.getBool('auth') ?? false;
 
-  final FirebaseUser user = await _auth.currentUser();
-
   if (authSignedIn == true) {
-    if (user != null) {
-      uid = user.uid;
-      name = user.displayName;
-      email = user.email;
-      imageUrl = user.photoUrl;
+    if (googleSignIn.currentUser != null) {
+      uid = googleSignIn.currentUser.id;
+      name = googleSignIn.currentUser.displayName;
+      email = googleSignIn.currentUser.email;
+      imageUrl = googleSignIn.currentUser.photoUrl;
     }
   }
 }
 
 Future<String> signInWithGoogle() async {
-  final GoogleSignInAccount googleSignInAccount = await googleSignIn.signIn();
-  final GoogleSignInAuthentication googleSignInAuthentication =
-      await googleSignInAccount.authentication;
+    await googleSignIn.signIn();
 
-  final AuthCredential credential = GoogleAuthProvider.getCredential(
-    accessToken: googleSignInAuthentication.accessToken,
-    idToken: googleSignInAuthentication.idToken,
-  );
+  if(googleSignIn.currentUser!=null) {
+    // Checking if email and name is null
+    assert(googleSignIn.currentUser.id != null);
+    assert(googleSignIn.currentUser.email != null);
+    assert(googleSignIn.currentUser.displayName != null);
+    assert(googleSignIn.currentUser.photoUrl != null);
 
-  final AuthResult authResult = await _auth.signInWithCredential(credential);
-  final FirebaseUser user = authResult.user;
+    uid = googleSignIn.currentUser.id;
+    name = googleSignIn.currentUser.displayName;
+    email = googleSignIn.currentUser.email;
+    imageUrl = googleSignIn.currentUser.photoUrl;
 
-  // Checking if email and name is null
-  assert(user.uid != null);
-  assert(user.email != null);
-  assert(user.displayName != null);
-  assert(user.photoUrl != null);
+    // Only taking the first part of the name, i.e., First Name
+    if (name.contains(" ")) {
+      name = name.substring(0, name.indexOf(" "));
+    }
 
-  uid = user.uid;
-  name = user.displayName;
-  email = user.email;
-  imageUrl = user.photoUrl;
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool('auth', true);
+    authSignedIn = true;
 
-  // Only taking the first part of the name, i.e., First Name
-  if (name.contains(" ")) {
-    name = name.substring(0, name.indexOf(" "));
+    return 'signInWithGoogle succeeded: $googleSignIn.currentUser';
   }
-
-  assert(!user.isAnonymous);
-  assert(await user.getIdToken() != null);
-
-  final FirebaseUser currentUser = await _auth.currentUser();
-  assert(user.uid == currentUser.uid);
-
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  prefs.setBool('auth', true);
-  authSignedIn = true;
-
-  return 'signInWithGoogle succeeded: $user';
+  else
+    return "error sign in";
 }
 
 void signOutGoogle() async {
